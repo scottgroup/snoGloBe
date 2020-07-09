@@ -14,7 +14,7 @@ snoGloBe works with python 3.5 or greater and requires the following packages av
 
 snoGloBe also needs 
 
-* [bedtools] (v.2.25.0 or higher)(http://bedtools.readthedocs.io/en/latest/). 
+* [bedtools] (v.2.25.0 or higher) (http://bedtools.readthedocs.io/en/latest/). 
 [Click here for installation guidelines](http://bedtools.readthedocs.io/en/latest/content/installation.html)
 
 ### **Installing**
