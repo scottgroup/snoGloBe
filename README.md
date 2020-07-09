@@ -14,7 +14,7 @@ snoGloBe works with python 3.5 or greater and requires the following packages av
 
 snoGloBe also needs 
 
-* [bedtools] (v.2.25.0 or higher) (http://bedtools.readthedocs.io/en/latest/). 
+* [bedtools](http://bedtools.readthedocs.io/en/latest/). 
 [Click here for installation guidelines](http://bedtools.readthedocs.io/en/latest/content/installation.html)
 
 ### **Installing**
@@ -26,8 +26,8 @@ cd /path/to/clone/
 git clone http://gitlabscottgroup.med.usherbrooke.ca/scott-group/snoglobe.git
 ```
 
-For easier usage, add the /bin/ path of the snoglobe repository to your PATH environment variable.
-this is easily done by opening your .bashrc file in your $HOME repository and add this line at the bottom:
+For easier use, add the /bin/ path of the snoglobe repository to your PATH environment variable.
+this is easily done by opening your .bashrc file in your $HOME repository and adding this line at the bottom:
 
 ```
 export PATH=/path/to/clone/snoglobe/bin:$PATH
