@@ -36,6 +36,9 @@ def sno_windows(sno_fasta, sno_file):
     df_sno['rel_pos'] = df_sno.rel_pos.round(3)
     df_sno = df_sno.drop(['idx', 'length'], axis=1)
     df_sno['snoid'] = df_sno.index
+    if len(df_sno[df_sno.snoid.str.contains(',')]) > 0:
+        print('Warning: commas (,) in snoRNA ids will be changed for dot (.)')
+        df_sno['snoid'] = df_sno['snoid'].str.replace(',','.')
     df_sno = df_sno[df_sno.columns.sort_values()]
     df_sno.to_csv(sno_file, index=False)
 

@@ -1,4 +1,4 @@
-# **snoGloBe** : a box C/D snoRNA interaction predictor
+# **snoGloBe**: a box C/D snoRNA interaction predictor
 
 ## **Getting Started**
 

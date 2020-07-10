@@ -15,14 +15,14 @@ def predict(args):
     X = pd.merge(X_sno, X_t, on='decoy')
     del X_t
     X = X.drop(['decoy'], axis=1)
-    X = X.set_index(X.snoid + ':' + X.wid)
+    X = X.set_index(X.snoid + ',' + X.wid)
     X = X.drop(['snoid', 'wid'], axis=1)
     X = X[X.columns.sort_values()]
     X['rel_pos'] = X['rel_pos'].round(3)
     res = mdl.predict_proba(X)
     df_proba = pd.DataFrame(res, index=X.index, columns=['prob_neg', 'prob_pos'])
-    df_proba['snoid'] = df_proba.index.str.split(':', expand=True).get_level_values(0)
-    df_proba['window'] = df_proba.index.str.split(':', expand=True).get_level_values(1)
+    df_proba['snoid'] = df_proba.index.str.split(',', expand=True).get_level_values(0)
+    df_proba['window'] = df_proba.index.str.split(',', expand=True).get_level_values(1)
     df_proba[['snoid', 'sno_window']] = df_proba['snoid'].str.rsplit('_', 1, expand=True)
     df_proba[['target_id', 'wstart']] = df_proba['window'].str.split('_', 1, expand=True)
     df_proba = df_proba[['snoid', 'sno_window', 'target_id', 'wstart', 'prob_pos']]
