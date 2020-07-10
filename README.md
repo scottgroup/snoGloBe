@@ -74,6 +74,11 @@ optional arguments:
                         output
 ```
 
+## **Recommendation**
+
+Running a single snoRNA against every human genes will take a few days. We recommend focusing on a subset of genes of
+interest and using a cluster for more exhaustive jobs.
+
 ## **Authors**
 
 * **Gabrielle Deschamps-Francoeur** - [gitlab](http://gitlabscottgroup.med.usherbrooke.ca/u/gabrielle)
