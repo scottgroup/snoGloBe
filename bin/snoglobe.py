@@ -71,19 +71,12 @@ def extract_seq(row, dict, seq_type):
     return window_seq
 
 
-def interaction_sequence(outfile, sno_fasta, target_fasta, chunksize, merged):
+def interaction_sequence(outfile, sno_fasta, target_fasta, chunksize):
     tempfile = outfile + '.seq'
     target_dict = read_trx_fasta(target_fasta)
     sno_dict = read_trx_fasta(sno_fasta)
     wlength = 13
-    if merged is True:
-        header = 0
-    else:
-        header = None
-    for i, df in enumerate(pd.read_csv(outfile, chunksize=chunksize, header=header)):
-        if merged is False:
-            df.columns = ['sno_id', 'sno_window_start', 'target_id', 'target_window_start', 'score']
-        print(df[:5])
+    for i, df in enumerate(pd.read_csv(outfile, chunksize=chunksize)):
         if 'target_window_end' not in df.columns:
             df['target_window_end'] = df['target_window_start'] + wlength
             df['sno_window_end'] = df['sno_window_start'] + wlength
@@ -99,7 +92,10 @@ def interaction_sequence(outfile, sno_fasta, target_fasta, chunksize, merged):
             score_cols = [c for c in df.columns if 'score' in c]
             if len(score_cols) > 0:
                 df[score_cols] = df[score_cols].round(3)
-            df.to_csv(tempfile, index=False, sep='\t', mode=mode, header=header)
+            sorted_cols = ['target_id', 'target_window_start', 'target_window_end', 'sno_id', 'sno_window_start',
+                           'sno_window_end'] + [j for j in df.columns if 'score' in j] + ['target_seq', 'sno_seq']
+            df = df[sorted_cols]
+            df.to_csv(tempfile, index=False, mode=mode, header=header)
     os.rename(tempfile, outfile)
 
 
@@ -178,7 +174,7 @@ def main():
         cons_windows(outfile, nb_windows, chunksize, step, nb_threads)
 
     if add_seq is True:
-        interaction_sequence(outfile, sno_fasta, target_fasta, chunksize, merge_conswindows)
+        interaction_sequence(outfile, sno_fasta, target_fasta, chunksize)
 
 
 if __name__ == '__main__':
