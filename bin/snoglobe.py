@@ -156,6 +156,11 @@ def main():
     if nb_windows != 1 and merge_conswindows is False:
         print('-w/--nb_windows must be used with -m/--merge option. -w/--windows %d will be ignored' % nb_windows)
 
+    if threshold < 0 or threshold >1:
+        print("Wrong choice of -t/--threshold. Value must be between 0 and 1, chosen value was: ", threshold,
+              file=sys.stderr)
+        exit(1)
+
     # define temp file names
     sno_file = os.path.join(outpath, os.path.basename(sno_fasta).replace('.fa', '.input.csv'))
     bedfile = os.path.join(outpath, os.path.basename(gtf).replace('.gtf', '.features.bed'))
