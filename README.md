@@ -27,7 +27,7 @@ git clone http://gitlabscottgroup.med.usherbrooke.ca/scott-group/snoglobe.git
 ```
 
 For easier use, add the /bin/ path of the snoglobe repository to your PATH environment variable.
-this is easily done by opening your .bashrc file in your $HOME repository and adding this line at the bottom:
+This is easily done by opening your .bashrc file in your $HOME directory and adding this line at the bottom:
 
 ```
 export PATH=/path/to/clone/snoglobe/bin:$PATH
