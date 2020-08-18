@@ -93,10 +93,11 @@ def interaction_sequence(outfile, sno_fasta, target_fasta, chunksize):
             df['target_seq'] = df.apply(lambda row: extract_seq(row, target_dict, 'target'), axis=1)
             df['sno_seq'] = df.apply(lambda row: extract_seq(row, sno_dict, 'sno'), axis=1)
             score_cols = [c for c in df.columns if 'score' in c]
-            if len(score_cols) > 0:
-                df[score_cols] = df[score_cols].round(3)
+            df[score_cols] = df[score_cols].round(3)
+            if len(score_cols) > 1:
+                score_cols = ['count'] + score_cols
             sorted_cols = ['target_id', 'target_window_start', 'target_window_end', 'sno_id', 'sno_window_start',
-                           'sno_window_end'] + [j for j in df.columns if 'score' in j] + ['target_seq', 'sno_seq']
+                           'sno_window_end'] + score_cols + ['target_seq', 'sno_seq']
             df = df[sorted_cols]
             df.to_csv(tempfile, index=False, mode=mode, header=header)
     os.rename(tempfile, outfile)
