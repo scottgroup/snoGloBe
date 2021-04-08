@@ -4,6 +4,7 @@ import pandas as pd
 import os
 import subprocess
 from io import StringIO
+import sys
 
 
 def column_list(df_gtf):
@@ -62,8 +63,8 @@ def set_columns(df, cols):
     unexpected_cols = set(df.columns) - set(cols)
     if len(unexpected_cols) > 0:
         print('Warning: The following features won\'t be taking into account for the prediction. '
-              'Please refer to the manual for a list of accepted features.')
-        print(unexpected_cols)
+              'Please refer to the manual for a list of accepted features.', file=sys.stderr)
+        print(unexpected_cols, file=sys.stderr)
     for i in missing_cols:
         df[i] = 0
     df = df[cols]

@@ -72,12 +72,9 @@ def check_output(output):
               file=sys.stderr)
         sys.exit(1)
     output_path = os.path.dirname(output)
-    cwd = os.getcwd()
     if os.path.isdir(output_path) == False:
         try:
-            if os.path.isdir(output_path) == False:
-                if os.path.isdir(os.path.join(cwd, output_path)) == False:
-                    sys.exit(1)
+            os.makedirs(output_path, exist_ok=True)
         except:
             print("Error: path to output does not exist: %s. Please specify a valid output path." % (output),
                   file=sys.stderr)
@@ -90,4 +87,16 @@ def check_dependencies():
         print('Error: bedtools is not installed. Please read the README.md file '
               'for more information about snoGloBe\'s prerequisites.',
               file=sys.stderr)
+        sys.exit(1)
+
+
+def check_target_ids(df_gtf, target_list):
+    target_list = set(target_list)
+    gtf_ids = set(df_gtf.gene_id.unique().tolist()
+                  + df_gtf.transcript_id.unique().tolist()
+                  + df_gtf.exon_id.unique().tolist())
+    notfound = target_list - gtf_ids
+    if len(notfound) > 0 :
+        print('Error: The following identifiers from the target file were not found in the gtf file : \n%s'
+              %'\n'.join(notfound), file=sys.stderr)
         sys.exit(1)

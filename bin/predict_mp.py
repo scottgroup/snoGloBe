@@ -22,10 +22,11 @@ def predict(args):
     res = mdl.predict_proba(X)
     df_proba = pd.DataFrame(res, index=X.index, columns=['prob_neg', 'prob_pos'])
     df_proba['snoid'] = df_proba.index.str.split(',', expand=True).get_level_values(0)
-    df_proba['window'] = df_proba.index.str.split(',', expand=True).get_level_values(1)
+    df_proba['target_id'] = df_proba.index.str.split(',', expand=True).get_level_values(1)
     df_proba[['snoid', 'sno_window']] = df_proba['snoid'].str.rsplit('_', 1, expand=True)
-    df_proba[['target_id', 'wstart']] = df_proba['window'].str.split('_', 1, expand=True)
-    df_proba = df_proba[['snoid', 'sno_window', 'target_id', 'wstart', 'prob_pos']]
+    df_proba[['target_id', 'target_chromo', 'target_strand', 'wstart']] = df_proba['target_id'].str.rsplit('_', 3,
+                                                                                                           expand=True)
+    df_proba = df_proba[['snoid', 'sno_window', 'target_id', 'target_chromo', 'wstart', 'target_strand', 'prob_pos']]
     df_proba = df_proba[df_proba.prob_pos > threshold]
     df_proba.prob_pos = df_proba.prob_pos.round(3)
     return df_proba
@@ -62,7 +63,10 @@ def make_pred(step, snofile, targetfile, chunksize, nb_threads, outfile, thresho
             nb_snowindows += 1
 
     if nb_snowindows < 500:
-        chunksize_sno = nb_snowindows
+        if chunksize < nb_snowindows:
+            chunksize_sno = chunksize
+        else:
+            chunksize_sno = nb_snowindows
         chunksize_t = int(chunksize / chunksize_sno)
     else:
         chunksize_sno = 500
