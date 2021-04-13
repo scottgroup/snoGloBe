@@ -196,7 +196,7 @@ def main():
                         type=int, default=1)
     parser.add_argument("-s", "--stepsize", help="Number of nucleotides between each target sliding window. Default: 1",
                         type=int, default=1)
-    parser.add_argument("-c", "--chunksize", help="Number of combinations to run at once. Default: 3000000",
+    parser.add_argument("-c", "--chunksize", help="Number of combinations to run at once. Default: 2500000",
                         type=int, default=2500000)
     parser.add_argument("-t", "--threshold", help="Minimum score for an interaction to be reported, "
                                                   "value between 0 and 1. Default: 0.95",

@@ -63,7 +63,7 @@ optional arguments:
                         window. Default: 1
   -c CHUNKSIZE, --chunksize CHUNKSIZE
                         Number of combinations to run at once. Default:
-                        3000000
+                        2500000
   -t THRESHOLD, --threshold THRESHOLD
                         Minimum score for an interaction to be reported, value
                         between 0 and 1. Default: 0.95
