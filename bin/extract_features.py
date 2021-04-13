@@ -79,9 +79,9 @@ def extract_features(df, fpath, bedfile):
     df = df.sort_values(['seqname', 'window_start', 'window_end'])
     df[['window_start', 'window_end']] = df[['window_start', 'window_end']].astype(int)
     df.to_csv(os.path.join(fpath, '_targets.bed'), sep='\t', index=False, header=False)
-    bedtools_cmd = ['bedtools intersect -a %s -b %s -s -wb' %
-                    (os.path.join(fpath, '_targets.bed'), bedfile)]
-    result = subprocess.Popen(bedtools_cmd, stdout=subprocess.PIPE, shell=True)
+    bedtools_cmd = ['bedtools', 'intersect', '-a', os.path.join(fpath, '_targets.bed'),
+                    '-b', bedfile, '-s', '-wb']
+    result = subprocess.Popen(bedtools_cmd, stdout=subprocess.PIPE)
     b = StringIO(result.communicate()[0].decode('utf-8'))
     df_out = pd.read_csv(b, sep="\t",
                          names=['chr1', 'start1', 'end1', 'id', 'score1', 'strand1',

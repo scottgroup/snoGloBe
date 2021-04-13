@@ -33,8 +33,8 @@ def merge_consecutive_windows(df_bed, step, nb_min, last_pos, agg_fct=['mean', '
     df_merged['border_twindow'] = df_merged.wstart
     cols = ['target_id', 'sno_id', 'score', 'next_snowindow', 'cons_twindow', 'target_chromo', 'target_strand']
     df_tomerge = df_bed[cols].copy(deep=True)
-    left_cols = ['target_id', 'sno_id', 'sno_window', 'wstart', 'target_chromo', 'target_strand']
-    right_cols = ['target_id', 'sno_id', 'next_snowindow', 'cons_twindow', 'target_chromo', 'target_strand']
+    left_cols = ['sno_id', 'sno_window', 'wstart', 'target_chromo', 'target_strand']
+    right_cols = ['sno_id', 'next_snowindow', 'cons_twindow', 'target_chromo', 'target_strand']
     original_windows = df_bed[left_cols].values.tolist()
     cons_windows = df_bed[right_cols].values.tolist()
     i = 1
@@ -156,22 +156,24 @@ def cons_windows(infile, nb_min, chunksize, step, nb_threads):
     # File should be sorted by target start to be compatible with chunks,
     # otherwise, some consecutive windows could not be merged
     wlength = 13
-    # sort file by sno_id, target_id, target_start
-    sort_cmd = ['sort --parallel=%d -t, -k1,1 -k3,3 -k5,5n %s' % (nb_threads, infile)]
-    result = subprocess.Popen(sort_cmd, stdout=subprocess.PIPE, shell=True)
+    # sort file by sno_id, target_chromo, target_strand, target_start and target_end
+    sort_cmd = 'sort --parallel=%d -k7,7 -k1,1 -k6,6 -k2,3n %s' % (nb_threads, infile)
+    result = subprocess.Popen(sort_cmd.split(), stdout=subprocess.PIPE)
     sorted_input = StringIO(result.communicate()[0].decode('utf-8'))
     # merge windows
     temp_output = infile + '.sorted.merged.csv'
-    df_prev = pd.DataFrame(columns=['target_id', 'wstart', 'end', 'sno_id', 'sno_window',
+    df_prev = pd.DataFrame(columns=['target_id', 'wstart', 'wend', 'sno_id', 'sno_window',
                                     'sno_window_start', 'sno_window_end', 'target_chromo',
                                     'target_window_start', 'target_window_end',
                                     'target_strand', 'min_score1', 'max_score1', 'mean_score1', 'count1'])
     for i, df in enumerate(pd.read_csv(sorted_input,
-                                       names=['sno_id', 'sno_window', 'target_id', 'target_chromo', 'wstart',
-                                              'target_strand', 'score'],
-                                       chunksize=chunksize)):
+                                       names=['target_chromo', 'wstart', 'wend', 'target_id',
+                                              'score', 'target_strand',  'sno_id', 'sno_window', 'sno_window_end'],
+                                       chunksize=chunksize,
+                                       sep='\t')):
         if df.empty:
             continue
+        df = df.drop(['sno_window_end'], axis=1)
         last_pos = df.wstart.values[-1]
         df = pd.concat([df, df_prev], sort=False, ignore_index=True)
 
@@ -187,27 +189,24 @@ def cons_windows(infile, nb_min, chunksize, step, nb_threads):
         df_prev['sno_window'] = df_prev.sno_window_start
         df_prev['wstart'] = df_prev.target_window_end - wlength
         df_prev['wend'] = df_prev.target_window_end
+
+        df_prev.loc[df_prev.target_strand == '-', 'sno_window'] = df_prev['sno_window_end'] - wlength
+        df_prev.loc[df_prev.target_strand == '-', 'wstart'] = df_prev['target_window_end'] - wlength
+
         if i == 0:
             mode = 'w'
-            header = True
         else:
             mode = 'a'
-            header = False
 
         df_merged[[
-            'target_id', 'target_chromo', 'target_window_start', 'target_window_end', 'target_strand',
-            'sno_id', 'sno_window_start', 'sno_window_end', 'count',
-            'mean_score', 'min_score', 'max_score']].to_csv(temp_output,
-                                                            mode=mode,
-                                                            header=header,
-                                                            index=False)
+            'target_chromo', 'target_window_start', 'target_window_end', 'target_id', 'count', 'target_strand',
+            'sno_id', 'sno_window_start', 'sno_window_end', 'mean_score', 'min_score', 'max_score'
+        ]].to_csv(temp_output, mode=mode, header=False, index=False, sep='\t')
 
     df_prev[df_prev['count1'] >= nb_min][[
-        'target_id', 'target_chromo', 'target_window_start', 'target_window_end', 'target_strand',
-        'sno_id', 'sno_window_start', 'sno_window_end', 'count1',
-        'mean_score1', 'min_score1', 'max_score1']].to_csv(temp_output,
-                                                           mode='a',
-                                                           header=False,
-                                                           index=False)
+        'target_chromo', 'target_window_start', 'target_window_end', 'target_id', 'count1', 'target_strand',
+        'sno_id', 'sno_window_start', 'sno_window_end',
+        'mean_score1', 'min_score1', 'max_score1'
+    ]].to_csv(temp_output,  mode='a', header=False, index=False, sep='\t')
     os.remove(infile)
     os.rename(temp_output, infile)

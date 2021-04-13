@@ -16,6 +16,10 @@ import sys
 import tests
 from fetch_sequence import get_sequence_from_coordinates as get_seq
 import re
+import io
+import subprocess
+import pickle
+import gc
 
 
 def read_gtf(gtf_file, verbose):
@@ -77,9 +81,9 @@ def sno_windows(sno_fasta, sno_file, verbose):
 def target_windows(target_dict, df_gtf, step, target_file, bedfile):
     df_target = sliding_window(target_dict, step)
     df_target['feature_id'] = df_target.index
-    df_target[['feature_id', 'seqname', 'strand', 'window_start']] = df_target.feature_id.str.rsplit('_', 3, expand=True)
+    df_target[['seqname', 'start', 'strand', 'window_start']] = df_target.feature_id.str.rsplit('_', 3, expand=True)
     df_target['window_end'] = df_target.window_start.astype(int) + 13
-    df_target = df_target.drop(['idx', 'length', 'feature_id'], axis=1)
+    df_target = df_target.drop(['idx', 'length', 'feature_id', 'start'], axis=1)
     df_bed = df_target[['seqname', 'window_start', 'window_end', 'strand']].copy(deep=True)
     df_target = df_target.drop(['seqname', 'strand', 'window_start', 'window_end'], axis=1)
     df_bed['score'] = 0
@@ -100,7 +104,6 @@ def extract_seq(row, dict, seq_type):
     gene_start = dict[feature_id]['start']
     gene_end = gene_start + len(seq)
     if strand == '+' :
-        gene_start = dict[feature_id]['start']
         start = row[seq_type + '_window_start'] - gene_start # relative start
         end = row[seq_type + '_window_end'] - gene_start  # relative end
     elif strand == '-':
@@ -113,20 +116,14 @@ def extract_seq(row, dict, seq_type):
     return window_seq
 
 
-def interaction_sequence(outfile, sno_fasta, target_dict, chunksize):
+def interaction_sequence(outfile, sno_fasta, target_dict, chunksize, cols):
     tempfile = outfile + '.seq'
     sno_dict = read_trx_fasta(sno_fasta)
-    wlength = 13
-    for i, df in enumerate(pd.read_csv(outfile, chunksize=chunksize)):
-        if 'target_window_end' not in df.columns:
-            df['target_window_end'] = df['target_window_start'] + wlength
-            df['sno_window_end'] = df['sno_window_start'] + wlength
+    for i, df in enumerate(pd.read_csv(outfile, chunksize=chunksize, names=cols, sep='\t')):
         if i == 0:
             mode = 'w'
-            header = True
         else:
             mode = 'a'
-            header = False
         if df.empty is False:
             df['target_seq'] = df.apply(lambda row: extract_seq(row, target_dict, 'target'), axis=1)
             df['sno_seq'] = df.apply(lambda row: extract_seq(row, sno_dict, 'sno'), axis=1)
@@ -136,23 +133,49 @@ def interaction_sequence(outfile, sno_fasta, target_dict, chunksize):
         score_cols = [c for c in df.columns if 'score' in c]
         df[score_cols] = df[score_cols].round(3)
         if len(score_cols) > 1:
-            score_cols = ['count'] + score_cols
-        sorted_cols = ['target_id', 'target_chromo', 'target_window_start', 'target_window_end',
-                       'target_strand', 'sno_id', 'sno_window_start',
-                       'sno_window_end'] + score_cols + ['target_seq', 'sno_seq']
+            sorted_cols = ['target_chromo', 'target_window_start', 'target_window_end',
+                            'target_id', 'count', 'target_strand', 'sno_id', 'sno_window_start',
+                           'sno_window_end'] + score_cols + ['target_seq', 'sno_seq']
+        else:
+            sorted_cols = ['target_chromo', 'target_window_start', 'target_window_end',
+                            'target_id'] + score_cols + ['target_strand', 'sno_id', 'sno_window_start',
+                           'sno_window_end', 'target_seq', 'sno_seq']
         df = df[sorted_cols]
-        df.to_csv(tempfile, index=False, mode=mode, header=header)
+        df.to_csv(tempfile, index=False, mode=mode, header=False, sep='\t')
     os.rename(tempfile, outfile)
 
 
-def get_target_seq(df_gtf, chromo_dir, target_ids, verbose):
+def merge_intervals(df, strand, outpath):
+    temp_file = os.path.join(outpath, 'temp%s.bed' % strand)
+    # split by strand
+    temp_df = df[df.strand == strand][['seqname', 'start', 'end']]
+    temp_df = temp_df.sort_values(['seqname', 'start', 'end'])
+    temp_df.to_csv(temp_file, index=False, header=False, sep='\t')
+    # merge intervals with bedtools
+    cmd = ('bedtools',  'merge', '-i', temp_file)
+    res = subprocess.Popen(cmd, stdout=subprocess.PIPE)
+    df_merged = pd.read_csv(io.StringIO(res.stdout.read().decode()),
+                            sep='\t',
+                            names=['seqname', 'start', 'end'],
+                            dtype={'seqname':str, 'start': int, 'end': int})
+    df_merged['strand'] = strand
+    os.remove(temp_file)
+    return df_merged
+
+
+def get_target_seq(df_gtf, chromo_dir, target_ids, verbose, outpath):
     df_target = df_gtf[df_gtf.feature_id.isin(target_ids)].copy(deep=True)
     df_target = df_target[['seqname', 'start', 'end', 'strand', 'feature_id']]
-    df_target = get_seq(df_target, chromo_dir, verbose)
-    df_target['seq'] = df_target['seq'].str.upper().str.replace('T', 'U')
-    df_target['feature_id'] =  df_target['feature_id'] + '_' + df_target.seqname.astype(str) + '_' + df_target.strand
-    df_target = df_target.set_index('feature_id')
-    target_dict = df_target.to_dict(orient='index')
+    df_fwd = merge_intervals(df_target, '+', outpath)
+    df_rev = merge_intervals(df_target, '-', outpath)
+    df_merged = pd.concat([df_fwd, df_rev])
+    df_merged = get_seq(df_merged, chromo_dir, verbose)
+    df_merged['seq'] = df_merged['seq'].str.upper().str.replace('T', 'U')
+    df_merged['feature_id'] = df_merged.seqname.astype(str) \
+                              + '_' + df_merged.start.astype(str) \
+                              + '_' + df_merged.strand
+    df_merged = df_merged.set_index('feature_id')
+    target_dict = df_merged.to_dict(orient='index')
     return target_dict
 
 
@@ -174,7 +197,7 @@ def main():
     parser.add_argument("-s", "--stepsize", help="Number of nucleotides between each target sliding window. Default: 1",
                         type=int, default=1)
     parser.add_argument("-c", "--chunksize", help="Number of combinations to run at once. Default: 3000000",
-                        type=int, default=3000000)
+                        type=int, default=2500000)
     parser.add_argument("-t", "--threshold", help="Minimum score for an interaction to be reported, "
                                                   "value between 0 and 1. Default: 0.95",
                         type=float, default=0.95)
@@ -232,33 +255,84 @@ def main():
         target_list =  tf.readlines()
         target_list = [t.strip() for t in target_list]
     tests.check_target_ids(df_gtf, target_list)
+
+    target_bed = os.path.join(outpath, 'target.bed')
+    df_gtf[df_gtf.feature_id.isin(target_list)][
+        ['seqname', 'start', 'end', 'feature_id', 'score', 'strand']
+    ].to_csv(target_bed, index=False, header=False, sep='\t')
+
     sno_windows(sno_fasta, sno_file, verbose)
     if verbose:
         print('Preparing target windows')
     make_bed(df_gtf, bedfile)
-    target_dict = get_target_seq(df_gtf, chromo_dir, target_list, verbose)
+    target_dict = get_target_seq(df_gtf, chromo_dir, target_list, verbose, outpath)
     target_windows(target_dict, df_gtf, step, target_file, bedfile)
+    if add_seq:
+        target_pickle = os.path.join(outpath, 'target_seq.pkl')
+        pickle.dump(target_dict, open(target_pickle, 'wb'))
+    del target_dict
     del df_gtf
+    gc.collect()
     if verbose:
         print('Starting predictions')
-    make_pred(step, sno_file, target_file, chunksize, nb_threads, outfile, threshold, merge_conswindows)
+    make_pred(step, sno_file, target_file, chunksize, nb_threads, outfile, threshold)
 
     # remove temp files
     os.remove(sno_file)
     os.remove(target_file)
     os.remove(bedfile)
 
+    cols = ['target_chromo', 'target_window_start', 'target_window_end', 'target_id',
+            'score', 'target_strand', 'sno_id', 'sno_window_start', 'sno_window_end']
+
     # merge consecutive windows
     if merge_conswindows is True:
         if verbose:
             print('Merging consecutive windows')
         cons_windows(outfile, nb_windows, chunksize, step, nb_threads)
+        cols = ['target_chromo', 'target_window_start', 'target_window_end', 'target_id', 'count', 'target_strand',
+                'sno_id', 'sno_window_start', 'sno_window_end', 'mean_score', 'min_score', 'max_score']
 
     if add_seq is True:
+        target_dict = pickle.load(open(target_pickle, 'rb'))
         if verbose:
             print('Adding interaction sequences')
-        target_dict = {k.rsplit('_', 3)[0]: v for k,v in target_dict.items()}
-        interaction_sequence(outfile, sno_fasta, target_dict, chunksize)
+        interaction_sequence(outfile, sno_fasta, target_dict, chunksize, cols)
+        cols.extend(['target_seq', 'sno_seq'])
+        os.remove(target_pickle)
+    #
+
+    # sort bed
+    sort_cmd = ('sort', '--parallel', str(nb_threads), '-k', '1,1', '-k', '2,3n', outfile)
+    # bedtools intersect to get overlapping target_id
+    intersect_cmd = ('bedtools', 'intersect', '-s', '-wa', '-wb', '-a', '-', '-b', target_bed)
+
+    groupby_cmd = (
+    'bedtools', 'groupby',
+    '-g', ','.join([str(i) for i in range(1, len(cols) + 1)]),
+    '-c', str(len(cols) + 4),
+    '-o', 'distinct')
+
+    awk_cmd = ("awk", "{print $" + '"\t"$'.join([str(i) for i in range(1, 4)]) + '"\t"$' + str(
+        len(cols) + 1) + '"\t"$' + '"\t"$'.join([str(i) for i in range(5, len(cols) + 1)]) + "}")
+
+
+    final_file = outfile + '.final'
+    # create file with header
+    print('\t'.join(cols), file=open(final_file, 'w'))
+
+    res0 = subprocess.Popen(sort_cmd, stdout=subprocess.PIPE)
+    res1 = subprocess.Popen(intersect_cmd, stdin=res0.stdout, stdout=subprocess.PIPE)
+    res2 = subprocess.Popen(groupby_cmd, stdin=res1.stdout, stdout=subprocess.PIPE)
+    res3 = subprocess.Popen(awk_cmd, stdin=res2.stdout, stdout=open(final_file, 'a'))
+    res3.wait()
+
+    if res3.returncode == 0:
+        # clean up temp files
+        os.remove(target_bed)
+        os.rename(final_file, outfile)
+    else:
+        sys.exit(1)
 
 
 if __name__ == '__main__':

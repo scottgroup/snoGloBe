@@ -23,16 +23,20 @@ def predict(args):
     df_proba = pd.DataFrame(res, index=X.index, columns=['prob_neg', 'prob_pos'])
     df_proba['snoid'] = df_proba.index.str.split(',', expand=True).get_level_values(0)
     df_proba['target_id'] = df_proba.index.str.split(',', expand=True).get_level_values(1)
-    df_proba[['snoid', 'sno_window']] = df_proba['snoid'].str.rsplit('_', 1, expand=True)
-    df_proba[['target_id', 'target_chromo', 'target_strand', 'wstart']] = df_proba['target_id'].str.rsplit('_', 3,
-                                                                                                           expand=True)
-    df_proba = df_proba[['snoid', 'sno_window', 'target_id', 'target_chromo', 'wstart', 'target_strand', 'prob_pos']]
+    df_proba[['snoid', 'sno_window_start']] = df_proba['snoid'].str.rsplit('_', 1, expand=True)
+    df_proba['sno_window_end'] = df_proba['sno_window_start'].astype(int) + 13
+    df_proba[['target_chromo', 'start', 'target_strand', 'wstart']] = df_proba['target_id'].str.rsplit('_', 3,
+                                                                                                       expand=True)
+    df_proba['target_id'] = df_proba['target_id'].str.rsplit('_', 1).str[0]
+    df_proba['wend'] = df_proba.wstart.astype(int) + 13
+    df_proba = df_proba[['target_chromo', 'wstart', 'wend', 'target_id', 'prob_pos', 'target_strand',
+                         'snoid', 'sno_window_start', 'sno_window_end']]
     df_proba = df_proba[df_proba.prob_pos > threshold]
     df_proba.prob_pos = df_proba.prob_pos.round(3)
     return df_proba
 
 
-def make_pred(step, snofile, targetfile, chunksize, nb_threads, outfile, threshold, merged):
+def make_pred(step, snofile, targetfile, chunksize, nb_threads, outfile, threshold):
     snocols = [
         'snoid', '0_A', '0_C', '0_G', '0_U', '10_A', '10_C', '10_G', '10_U', '11_A', '11_C', '11_G', '11_U',
         '12_A', '12_C', '12_G', '12_U', '1_A', '1_C', '1_G', '1_U', '2_A', '2_C', '2_G', '2_U', '3_A', '3_C',
@@ -59,7 +63,7 @@ def make_pred(step, snofile, targetfile, chunksize, nb_threads, outfile, thresho
 
     nb_snowindows = 0
     with open(snofile, 'r') as f:
-        for line in snofile:
+        for line in f:
             nb_snowindows += 1
 
     if nb_snowindows < 500:
@@ -88,12 +92,7 @@ def make_pred(step, snofile, targetfile, chunksize, nb_threads, outfile, thresho
                            [[X_sno, X_part, mdl, step, threshold] for X_part in np.array_split(X_t, nb_threads)])
             pool.close()
             df_proba = pd.concat(list(res))
-            if merged is False and mode == 'w':
-                df_proba = df_proba.rename(columns={'snoid': 'sno_id', 'sno_window': 'sno_window_start',
-                                                    'wstart': 'target_window_start', 'prob_pos': 'score'})
-                df_proba.to_csv(outfile, header=True, index=False, mode=mode)
-            else:
-                df_proba.to_csv(outfile, header=False, index=False, mode=mode)
+            df_proba.to_csv(outfile, header=False, index=False, mode=mode, sep='\t')
             mode = 'a'
             del df_proba
             gc.collect()
