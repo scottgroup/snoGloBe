@@ -38,16 +38,19 @@ You should be able to execute the **snoglobe** command from your terminal.
  ```
 snoglobe --help
 usage: snoglobe.py [-h] [-v] [-n NB_THREADS] [-s STEPSIZE] [-c CHUNKSIZE]
-                   [-t THRESHOLD] [-m] [-w NB_WINDOWS] [--seq]
-                   sno_fasta target_fasta gtf output
+                   [-t THRESHOLD] [-m] [-w NB_WINDOWS] [--seq] [--verbose]
+                   sno_fasta target_ids gtf chromo_fasta_dir output
 
 positional arguments:
   sno_fasta             fasta file containing snoRNA sequences
-  target_fasta          fasta file containing target gene sequences, 
-                        gene_id should match the ones in the gtf file
+  target_ids            txt file containing target identifiers (gene_id,
+                        transcript_id or exon_id), ids should match the ones
+                        in the gtf file
   gtf                   Annotation file in .gtf format. Preferably an
                         annotation of the whole genome or whole chromosomes of
                         specified targets
+  chromo_fasta_dir      Directory containing fasta files of individual
+                        chromosome
   output                Output file name
 
 optional arguments:
@@ -72,6 +75,7 @@ optional arguments:
                         option. Default: 1
   --seq                 Add target and snoRNA interaction sequences to the
                         output
+  --verbose             Print the steps
 ```
 
 ## **Recommendation**
