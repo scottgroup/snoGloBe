@@ -60,7 +60,7 @@ def get_sequence_from_coordinates(dataf, chr_directory, verbose):
         print('Reading chromosome fasta')
 
     def fetch_seqs(row):
-        sequence = chr_seq_dict[row.seqname][int(row.start):int(row.end)]
+        sequence = chr_seq_dict[row.seqname][int(row.start - 1):int(row.end)]
         if row.strand == '-':
             sequence = str(Seq(sequence, generic_dna).reverse_complement())
         row['seq'] = sequence
