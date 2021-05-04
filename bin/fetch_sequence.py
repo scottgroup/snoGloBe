@@ -1,6 +1,6 @@
 import os
 from Bio.Seq import Seq
-from Bio.Alphabet import generic_dna
+# from Bio.Alphabet import generic_dna
 import gzip
 import pandas as pd
 import gc
@@ -62,7 +62,7 @@ def get_sequence_from_coordinates(dataf, chr_directory, verbose):
     def fetch_seqs(row):
         sequence = chr_seq_dict[row.seqname][int(row.start - 1):int(row.end)]
         if row.strand == '-':
-            sequence = str(Seq(sequence, generic_dna).reverse_complement())
+            sequence = str(Seq(sequence).reverse_complement())
         row['seq'] = sequence
         return row
 
