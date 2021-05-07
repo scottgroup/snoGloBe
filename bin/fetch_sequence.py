@@ -1,6 +1,5 @@
 import os
 from Bio.Seq import Seq
-# from Bio.Alphabet import generic_dna
 import gzip
 import pandas as pd
 import gc
@@ -72,6 +71,7 @@ def get_sequence_from_coordinates(dataf, chr_directory, verbose):
     df_out = pd.DataFrame()
 
     listdir = os.listdir(chr_directory)
+    listdir = [f for f in listdir if '.fa' in f]
     pref = find_prefix(listdir)
     suf = find_suffix(listdir)
 
