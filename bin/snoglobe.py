@@ -78,7 +78,7 @@ def sno_windows(sno_fasta, sno_file, verbose):
     df_sno.to_csv(sno_file, index=False)
 
 
-def target_windows(target_dict, df_gtf, step, target_file, bedfile):
+def target_windows(target_dict, df_gtf, step, target_file, bedfile, temp_output):
     df_target = sliding_window(target_dict, step)
     df_target['feature_id'] = df_target.index
     df_target[['seqname', 'start', 'strand', 'window_start']] = df_target.feature_id.str.rsplit('_', 3, expand=True)
@@ -88,7 +88,7 @@ def target_windows(target_dict, df_gtf, step, target_file, bedfile):
     df_target = df_target.drop(['seqname', 'strand', 'window_start', 'window_end'], axis=1)
     df_bed['score'] = 0
     df_bed['idx'] = df_bed.index
-    df_out = ef.extract_features(df_bed, os.path.dirname(target_file), bedfile)
+    df_out = ef.extract_features(df_bed, temp_output, bedfile)
     df_out = df_target.merge(df_out, left_index=True, right_index=True)
     cols = ef.column_list(df_gtf)
     df_out = ef.set_columns(df_out, cols)
@@ -267,7 +267,7 @@ def main():
         print('Preparing target windows')
     make_bed(df_gtf, bedfile)
     target_dict = get_target_seq(df_gtf, chromo_dir, target_list, verbose, os.path.join(outpath, comb_run))
-    target_windows(target_dict, df_gtf, step, target_file, bedfile)
+    target_windows(target_dict, df_gtf, step, target_file, bedfile, os.path.join(outpath, comb_run))
     if add_seq:
         target_pickle = os.path.join(outpath, comb_run + '.seq.pkl')
         pickle.dump(target_dict, open(target_pickle, 'wb'))

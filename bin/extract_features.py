@@ -78,8 +78,9 @@ def extract_features(df, fpath, bedfile):
     df = df[['seqname', 'window_start', 'window_end', 'idx', 'score', 'strand']]
     df = df.sort_values(['seqname', 'window_start', 'window_end'])
     df[['window_start', 'window_end']] = df[['window_start', 'window_end']].astype(int)
-    df.to_csv(os.path.join(fpath, '_targets.bed'), sep='\t', index=False, header=False)
-    bedtools_cmd = ['bedtools', 'intersect', '-a', os.path.join(fpath, '_targets.bed'),
+    temp_bed = fpath + '_targets.bed'
+    df.to_csv(temp_bed, sep='\t', index=False, header=False)
+    bedtools_cmd = ['bedtools', 'intersect', '-a', temp_bed,
                     '-b', bedfile, '-s', '-wb']
     result = subprocess.Popen(bedtools_cmd, stdout=subprocess.PIPE)
     b = StringIO(result.communicate()[0].decode('utf-8'))
@@ -93,5 +94,5 @@ def extract_features(df, fpath, bedfile):
     df_merged = pd.merge(df_out[['id']], df_dummy, left_index=True, right_index=True)
     df_merged = df_merged.groupby('id').max().reset_index()
     df_merged = df_merged.set_index('id')
-    os.remove(os.path.join(fpath, '_targets.bed'))
+    os.remove(temp_bed)
     return df_merged
