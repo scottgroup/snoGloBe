@@ -2,7 +2,7 @@
 
 __author__ = "Gabrielle Deschamps-Francoeur"
 __email__ = "gabrielle.deschamps-francoeur@usherbrooke.ca"
-__version__ = '0.1'
+__version__ = '0.1.1'
 
 import argparse
 from sliding_windows import sliding_window, read_trx_fasta
@@ -146,7 +146,7 @@ def interaction_sequence(outfile, sno_fasta, target_dict, chunksize, cols):
 
 
 def merge_intervals(df, strand, outpath):
-    temp_file = os.path.join(outpath, 'temp%s.bed' % strand)
+    temp_file = outpath + '.temp%s.bed' % strand
     # split by strand
     temp_df = df[df.strand == strand][['seqname', 'start', 'end']]
     temp_df = temp_df.sort_values(['seqname', 'start', 'end'])
@@ -245,9 +245,10 @@ def main():
         exit(1)
 
     # define temp file names
-    sno_file = os.path.join(outpath, os.path.basename(sno_fasta).replace('.fa', '.input.csv'))
-    bedfile = os.path.join(outpath, os.path.basename(gtf).replace('.gtf', '.features.bed'))
-    target_file = os.path.join(outpath, os.path.basename(target_ids).replace('.txt', '.input.csv'))
+    comb_run = os.path.basename(sno_fasta) + '_' + os.path.basename(target_ids)
+    sno_file = os.path.join(outpath, os.path.basename(sno_fasta).replace('.fa', comb_run + '.snoinput.csv'))
+    bedfile = os.path.join(outpath, os.path.basename(gtf).replace('.gtf', comb_run + '.features.bed'))
+    target_file = os.path.join(outpath, os.path.basename(target_ids).replace('.txt', comb_run + '.tinput.csv'))
 
     df_gtf = read_gtf(gtf, verbose)
 
@@ -265,10 +266,10 @@ def main():
     if verbose:
         print('Preparing target windows')
     make_bed(df_gtf, bedfile)
-    target_dict = get_target_seq(df_gtf, chromo_dir, target_list, verbose, outpath)
+    target_dict = get_target_seq(df_gtf, chromo_dir, target_list, verbose, os.path.join(outpath, comb_run))
     target_windows(target_dict, df_gtf, step, target_file, bedfile)
     if add_seq:
-        target_pickle = os.path.join(outpath, 'target_seq.pkl')
+        target_pickle = os.path.join(outpath, comb_run + '.seq.pkl')
         pickle.dump(target_dict, open(target_pickle, 'wb'))
     del target_dict
     del df_gtf
@@ -302,37 +303,50 @@ def main():
         os.remove(target_pickle)
     #
 
-    # sort bed
-    sort_cmd = ('sort', '--parallel', str(nb_threads), '-k', '1,1', '-k', '2,3n', outfile)
-    # bedtools intersect to get overlapping target_id
-    intersect_cmd = ('bedtools', 'intersect', '-s', '-wa', '-wb', '-a', '-', '-b', target_bed)
+    # verify if there are any predicted interactions
+    nb_line = 0
+    with open(outfile) as f:
+        for line in f:
+            nb_line += 1
+            if nb_line > 0:
+                break
 
-    groupby_cmd = (
-    'bedtools', 'groupby',
-    '-g', ','.join([str(i) for i in range(1, len(cols) + 1)]),
-    '-c', str(len(cols) + 4),
-    '-o', 'distinct')
+    if nb_line > 0:
+        # sort bed
+        sort_cmd = ('sort', '--parallel', str(nb_threads), '-k', '1,1', '-k', '2,3n', outfile)
+        # bedtools intersect to get overlapping target_id
+        intersect_cmd = ('bedtools', 'intersect', '-s', '-wa', '-wb', '-a', '-', '-b', target_bed)
 
-    awk_cmd = ("awk", "{print $" + '"\t"$'.join([str(i) for i in range(1, 4)]) + '"\t"$' + str(
-        len(cols) + 1) + '"\t"$' + '"\t"$'.join([str(i) for i in range(5, len(cols) + 1)]) + "}")
+        groupby_cmd = (
+        'bedtools', 'groupby',
+        '-g', ','.join([str(i) for i in range(1, len(cols) + 1)]),
+        '-c', str(len(cols) + 4),
+        '-o', 'distinct')
+
+        awk_cmd = ("awk", "{print $" + '"\t"$'.join([str(i) for i in range(1, 4)]) + '"\t"$' + str(
+            len(cols) + 1) + '"\t"$' + '"\t"$'.join([str(i) for i in range(5, len(cols) + 1)]) + "}")
 
 
-    final_file = outfile + '.final'
-    # create file with header
-    print('\t'.join(cols), file=open(final_file, 'w'))
+        final_file = outfile + '.final'
+        # create file with header
+        print('\t'.join(cols), file=open(final_file, 'w'))
 
-    res0 = subprocess.Popen(sort_cmd, stdout=subprocess.PIPE)
-    res1 = subprocess.Popen(intersect_cmd, stdin=res0.stdout, stdout=subprocess.PIPE)
-    res2 = subprocess.Popen(groupby_cmd, stdin=res1.stdout, stdout=subprocess.PIPE)
-    res3 = subprocess.Popen(awk_cmd, stdin=res2.stdout, stdout=open(final_file, 'a'))
-    res3.wait()
+        res0 = subprocess.Popen(sort_cmd, stdout=subprocess.PIPE)
+        res1 = subprocess.Popen(intersect_cmd, stdin=res0.stdout, stdout=subprocess.PIPE)
+        res2 = subprocess.Popen(groupby_cmd, stdin=res1.stdout, stdout=subprocess.PIPE)
+        res3 = subprocess.Popen(awk_cmd, stdin=res2.stdout, stdout=open(final_file, 'a'))
+        res3.wait()
 
-    if res3.returncode == 0:
-        # clean up temp files
-        os.remove(target_bed)
-        os.rename(final_file, outfile)
+        if res3.returncode == 0:
+            # clean up temp files
+            os.remove(target_bed)
+            os.rename(final_file, outfile)
+        else:
+            sys.exit(1)
+
     else:
-        sys.exit(1)
+        print('\t'.join(cols), file=open(outfile, 'w'))
+        os.remove(target_bed)
 
 
 if __name__ == '__main__':
