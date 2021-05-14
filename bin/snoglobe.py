@@ -257,7 +257,7 @@ def main():
         target_list = [t.strip() for t in target_list]
     tests.check_target_ids(df_gtf, target_list)
 
-    target_bed = os.path.join(outpath, 'target.bed')
+    target_bed = os.path.join(outpath, comb_run + '.target.bed')
     df_gtf[df_gtf.feature_id.isin(target_list)][
         ['seqname', 'start', 'end', 'feature_id', 'score', 'strand']
     ].to_csv(target_bed, index=False, header=False, sep='\t')
