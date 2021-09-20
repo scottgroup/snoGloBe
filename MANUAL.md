@@ -34,7 +34,7 @@ All the 13 nt windows from the snoRNAs will be compared to all the 13 nt windows
 
 ![alt_tag](ressources/sliding_windows_combination.png)
 
-The input features will be extracted for each individual windows. The snoRNA features are the window sequence and the 
+The input features will be extracted for each individual window. The snoRNA features are the window sequence and the 
 relative position of the window in the snoRNA. The target features are the window sequence, the position of the window 
 (exon and/or intron and whether the exon is a 5' or 3' UTR) and the biotype of the potential target.
 
@@ -82,7 +82,7 @@ Here is the previous example with the `-m/--merge` option:
 |4|1806710|1806725|ENSG00000068078|3|+|ENSG00000220988|33|48|0.995|0.991|0.998|GGGUCCUCAGGGGUG|CACCCCUGAGGACAC|
 |4|1808120|1808133|ENSG00000068078|1|+|ENSG00000220988|78|91|0.992|0.992|0.992|GGGCCCCUGGCAC|CACCCCUGAGGAC|
 
-It is possible the reduce the number of reported interactions by specifying a minimum number of consecutive windows 
+It is possible to reduce the number of reported interactions by specifying a minimum number of consecutive windows 
 using the `-w/--nb_windows` option. 
 
 Using the same example with the option `-w 2`, only the interactions supported by at least 2 consecutive 
@@ -95,7 +95,7 @@ windows will be reported:
 
 ## Example
 
-An example in available in the `snoglobe/example` directory. You can use this example to validate your installation, 
+An example is available in the `snoglobe/example` directory. You can use this example to validate your installation, 
 try different option combinations or as a reference for input files and format.
 
 Basic usage:
