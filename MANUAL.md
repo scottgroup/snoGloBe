@@ -48,7 +48,7 @@ TR_V_gene, TR_V_pseudogene, antisense, bidirectional_promoter_lncRNA, lincRNA, m
 non_coding, polymorphic_pseudogene, processed_pseudogene, processed_transcript, protein_coding, pseudogene, rRNA, 
 ribozyme, sRNA, scRNA, scaRNA, sense_intronic, sense_overlapping, snRNA, snoRNA, tRNA, 
 transcribed_processed_pseudogene, transcribed_unitary_pseudogene, transcribed_unprocessed_pseudogene, 
-unitary_pseudogene, unprocessed_pseudogene vaultRNA
+unitary_pseudogene, unprocessed_pseudogene, vaultRNA
 ```
 
 ## Output
