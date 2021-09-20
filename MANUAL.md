@@ -61,7 +61,7 @@ their identifiers, and the score assigned by snoGloBe. The sequence of the windo
 Here is a example of the output with the `--seq` option:
 
 |target_chromo|target_window_start|target_window_end|target_id|score|target_strand|sno_id|sno_window_start|sno_window_end|target_seq|sno_seq|
-|:-------------:|:-------------------:|:-----------------:|:-------------:|:-----:|:-------------:|:-------------:|:----------------:|:--------------:|:-----------:|:-----------:|
+|:-----------:|:-----------------:|:---------------:|:-------:|:---:|:-----------:|:----:|:--------------:|:------------:|:--------:|:-----:|
 |4|1793400|1793413|ENSG00000068078|0.995|+|ENSG00000220988|78|91|UGGGCCCGCGGAC|GUCUGAGGGGCCC|
 |4|1793707|1793720|ENSG00000068078|0.992|+|ENSG00000220988|16|29|GAGCCCUGGGCGG|CAGCACUGGGCUC|
 |4|1806710|1806723|ENSG00000068078|0.995|+|ENSG00000220988|35|48|GGGUCCUCAGGGG|CCCCUGAGGACAC|
@@ -106,6 +106,6 @@ cd path/to/snoglobe/example
 snoglobe snoRNA.fa target.txt target.gtf chromo_dir example_output.tsv
 ```
 
-Note: these files were reduced to a minimum for size consideration, it is recommended to use the complete annotation, 
-not only the target entries.
+_**Note:** these files were reduced to a minimum for size consideration, it is recommended to use the complete annotation, 
+not only the target entries._
 
