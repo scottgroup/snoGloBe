@@ -107,3 +107,12 @@ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
 GNU General Public License for more details.
 
 For more information about the GNU General Public License, see <http://www.gnu.org/licenses/>.
+
+
+## **How to cite**
+
+Please cite as :
+
+Deschamps-Francoeur G, Couture S, Abou-Elela S, Scott MS. The snoGloBe interaction predictor enables a broader study 
+of box C/D snoRNA functions and mechanisms. bioRxiv. 2021. Available from: 
+<https://www.biorxiv.org/content/10.1101/2021.09.14.460265v1>
