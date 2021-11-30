@@ -20,9 +20,10 @@ import io
 import subprocess
 import pickle
 import gc
+import random
 
 
-def read_gtf(gtf_file, verbose):
+def read_gtf(gtf_file, verbose=False):
     if verbose:
         print('Reading gtf')
     gtf_list = []
@@ -245,10 +246,10 @@ def main():
         exit(1)
 
     # define temp file names
-    comb_run = os.path.basename(sno_fasta) + '_' + os.path.basename(target_ids)
-    sno_file = os.path.join(outpath, os.path.basename(sno_fasta).replace('.fa', comb_run + '.snoinput.csv'))
-    bedfile = os.path.join(outpath, os.path.basename(gtf).replace('.gtf', comb_run + '.features.bed'))
-    target_file = os.path.join(outpath, os.path.basename(target_ids).replace('.txt', comb_run + '.tinput.csv'))
+    comb_run = 'temp_' + str(random.randint(0,100000))
+    sno_file = os.path.join(outpath, os.path.basename(sno_fasta) + comb_run + '.snoinput.csv')
+    bedfile = os.path.join(outpath, os.path.basename(gtf) + comb_run + '.features.bed')
+    target_file = os.path.join(outpath, os.path.basename(target_ids) + comb_run + '.tinput.csv')
 
     df_gtf = read_gtf(gtf, verbose)
 
