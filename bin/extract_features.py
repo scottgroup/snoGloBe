@@ -76,8 +76,8 @@ def set_columns(df, cols):
 
 def extract_features(df, fpath, bedfile):
     df = df[['seqname', 'window_start', 'window_end', 'idx', 'score', 'strand']]
+    df[['window_start', 'window_end']] =  df[['window_start', 'window_end']].astype(int)
     df = df.sort_values(['seqname', 'window_start', 'window_end'])
-    df[['window_start', 'window_end']] = df[['window_start', 'window_end']].astype(int)
     temp_bed = fpath + '_targets.bed'
     df.to_csv(temp_bed, sep='\t', index=False, header=False)
     bedtools_cmd = ['bedtools', 'intersect', '-a', temp_bed,

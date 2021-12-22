@@ -16,11 +16,14 @@ def intron_bed(df_gtf):
     return df_introns[['seqname', 'intron_start', 'intron_end', 'feature', 'score', 'strand']]
 
 
-def make_bed(df_gtf, bedfile):
+def make_bed(df_gtf, bedfile, calc_intron=True):
     df_bed = df_gtf[df_gtf.feature.isin(
-        ['five_prime_utr', 'three_prime_utr', 'exon'])][['seqname', 'start', 'end', 'feature', 'score', 'strand']]
-    df_intron = intron_bed(df_gtf)
-    df_intron = df_intron.rename(columns={'intron_start': 'start', 'intron_end': 'end'})
+        ['five_prime_utr', 'three_prime_utr', 'exon', 'intron'])][['seqname', 'start', 'end', 'feature', 'score', 'strand']]
+    if calc_intron:
+        df_intron = intron_bed(df_gtf)
+        df_intron = df_intron.rename(columns={'intron_start': 'start', 'intron_end': 'end'})
+    else:
+        df_intron = pd.DataFrame()
     df_biotype = df_gtf[df_gtf.feature == 'gene'][['seqname', 'start', 'end', 'gene_biotype', 'score', 'strand']]
     df_biotype = df_biotype.rename(columns={'gene_biotype': 'feature'})
     df_bed = pd.concat([df_bed, df_intron, df_biotype], sort=False)

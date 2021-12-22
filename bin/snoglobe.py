@@ -21,6 +21,7 @@ import subprocess
 import pickle
 import gc
 import random
+from utils import fetch_from_ensembl, read_fasta_from_str
 
 
 def read_gtf(gtf_file, verbose=False):
@@ -62,11 +63,10 @@ def read_gtf(gtf_file, verbose=False):
     return df_gtf
 
 
-def sno_windows(sno_fasta, sno_file, verbose):
+def sno_windows(sno_dict, sno_file, verbose):
     # read sno fasta file and split in sliding windows
     if verbose:
         print('preparing snoRNA windows')
-    sno_dict = read_trx_fasta(sno_fasta)
     df_sno = sliding_window(sno_dict, 1)
     df_sno['rel_pos'] = df_sno.idx / df_sno.length
     df_sno['rel_pos'] = df_sno.rel_pos.round(3)
@@ -117,9 +117,8 @@ def extract_seq(row, dict, seq_type):
     return window_seq
 
 
-def interaction_sequence(outfile, sno_fasta, target_dict, chunksize, cols):
-    tempfile = outfile + '.seq'
-    sno_dict = read_trx_fasta(sno_fasta)
+def interaction_sequence(outfile, sno_dict, target_dict, chunksize, cols, temp_dir):
+    tempfile = temp_dir + '.seq'
     for i, df in enumerate(pd.read_csv(outfile, chunksize=chunksize, names=cols, sep='\t')):
         if i == 0:
             mode = 'w'
@@ -180,101 +179,35 @@ def get_target_seq(df_gtf, chromo_dir, target_ids, verbose, outpath):
     return target_dict
 
 
-def main():
-    parser = argparse.ArgumentParser()
+def run_snoglobe(sno_dict, target_list, target_dict, df_gtf, nb_threads, step, chunksize, threshold,
+                 outfile, temp_dir, nb_windows, merge_conswindows=True, add_seq=True, verbose=False, calc_intron=True):
 
-    parser.add_argument("sno_fasta", help="fasta file containing snoRNA sequences")
-    parser.add_argument("target_ids",
-                        help="txt file containing target identifiers (gene_id, transcript_id or exon_id), "
-                             "ids should match the ones in the gtf file")
-    parser.add_argument("gtf", help="Annotation file in .gtf format. Preferably an annotation of the whole "
-                                    "genome or whole chromosomes of specified targets")
-    parser.add_argument("chromo_fasta_dir", help="Directory containing fasta files of individual chromosome")
-    parser.add_argument("output", help="Output file name")
-    parser.add_argument("-v", "--version", help="Show the version and exit",
-                        action="store_true")
-    parser.add_argument("-n", "--nb_threads", help="Number of threads to be used. Default: 1",
-                        type=int, default=1)
-    parser.add_argument("-s", "--stepsize", help="Number of nucleotides between each target sliding window. Default: 1",
-                        type=int, default=1)
-    parser.add_argument("-c", "--chunksize", help="Number of combinations to run at once. Default: 2500000",
-                        type=int, default=2500000)
-    parser.add_argument("-t", "--threshold", help="Minimum score for an interaction to be reported, "
-                                                  "value between 0 and 1. Default: 0.95",
-                        type=float, default=0.95)
-    parser.add_argument("-m", "--merge", help="Use this option to merge consecutive positive windows as one",
-                        action='store_true')
-    parser.add_argument("-w", "--nb_windows", help="Minimum number of consecutive windows for an "
-                                                   "interaction to be reported. Must be used with -m option. Default: 1",
-                        type=int, default=1)
-    parser.add_argument("--seq", help="Add target and snoRNA interaction sequences to the output",
-                        action='store_true')
-    parser.add_argument("--verbose", help='Print the steps', action='store_true')
-
-    if sys.argv[1] in ['-v', '--version']:
-        print('snoGloBe version :', __version__)
-        exit(0)
-
-    args = parser.parse_args()
-
-    sno_fasta = args.sno_fasta
-    target_ids = args.target_ids
-    gtf = args.gtf
-    chromo_dir  = args.chromo_fasta_dir
-    nb_threads = args.nb_threads
-    step = args.stepsize
-    chunksize = args.chunksize
-    threshold = args.threshold
-    outfile = os.path.abspath(args.output)
     outpath = os.path.dirname(outfile)
-    merge_conswindows = args.merge
-    nb_windows = args.nb_windows
-    add_seq = args.seq
-    verbose = args.verbose
-
-    tests.check_dependencies()
-    tests.check_gtf(gtf)
-    tests.check_output(outfile)
-
-    if nb_windows != 1 and merge_conswindows is False:
-        print('-w/--nb_windows must be used with -m/--merge option. -w/--windows %d will be ignored' % nb_windows,
-              file=sys.stderr)
-
-    if threshold < 0 or threshold >1:
-        print("Wrong choice of -t/--threshold. Value must be between 0 and 1, chosen value was: ", threshold,
-              file=sys.stderr)
-        exit(1)
-
     # define temp file names
-    comb_run = 'temp_' + str(random.randint(0,100000))
-    sno_file = os.path.join(outpath, os.path.basename(sno_fasta) + comb_run + '.snoinput.csv')
-    bedfile = os.path.join(outpath, os.path.basename(gtf) + comb_run + '.features.bed')
-    target_file = os.path.join(outpath, os.path.basename(target_ids) + comb_run + '.tinput.csv')
 
-    df_gtf = read_gtf(gtf, verbose)
+    sno_file = temp_dir + '.snoinput.csv'
+    bedfile = temp_dir + '.features.bed'
+    target_file = temp_dir + '.tinput.csv'
+    target_bed = temp_dir + '.target.bed'
 
-    with open(target_ids) as tf:
-        target_list =  tf.readlines()
-        target_list = [t.strip() for t in target_list]
-    tests.check_target_ids(df_gtf, target_list)
-
-    target_bed = os.path.join(outpath, comb_run + '.target.bed')
     df_gtf[df_gtf.feature_id.isin(target_list)][
         ['seqname', 'start', 'end', 'feature_id', 'score', 'strand']
     ].to_csv(target_bed, index=False, header=False, sep='\t')
 
-    sno_windows(sno_fasta, sno_file, verbose)
+    sno_windows(sno_dict, sno_file, verbose)
+
     if verbose:
         print('Preparing target windows')
-    make_bed(df_gtf, bedfile)
-    target_dict = get_target_seq(df_gtf, chromo_dir, target_list, verbose, os.path.join(outpath, comb_run))
-    target_windows(target_dict, df_gtf, step, target_file, bedfile, os.path.join(outpath, comb_run))
+    make_bed(df_gtf, bedfile, calc_intron)
+    target_windows(target_dict, df_gtf, step, target_file, bedfile, temp_dir)
+
     if add_seq:
-        target_pickle = os.path.join(outpath, comb_run + '.seq.pkl')
+        target_pickle = temp_dir + '.seq.pkl'
         pickle.dump(target_dict, open(target_pickle, 'wb'))
-    del target_dict
-    del df_gtf
+
+    del target_dict, df_gtf
     gc.collect()
+
     if verbose:
         print('Starting predictions')
     make_pred(step, sno_file, target_file, chunksize, nb_threads, outfile, threshold)
@@ -288,21 +221,20 @@ def main():
             'score', 'target_strand', 'sno_id', 'sno_window_start', 'sno_window_end']
 
     # merge consecutive windows
-    if merge_conswindows is True:
+    if merge_conswindows:
         if verbose:
             print('Merging consecutive windows')
         cons_windows(outfile, nb_windows, chunksize, step, nb_threads)
         cols = ['target_chromo', 'target_window_start', 'target_window_end', 'target_id', 'count', 'target_strand',
                 'sno_id', 'sno_window_start', 'sno_window_end', 'mean_score', 'min_score', 'max_score']
 
-    if add_seq is True:
+    if add_seq:
         target_dict = pickle.load(open(target_pickle, 'rb'))
         if verbose:
             print('Adding interaction sequences')
-        interaction_sequence(outfile, sno_fasta, target_dict, chunksize, cols)
+        interaction_sequence(outfile, sno_dict, target_dict, chunksize, cols, temp_dir)
         cols.extend(['target_seq', 'sno_seq'])
         os.remove(target_pickle)
-    #
 
     # verify if there are any predicted interactions
     nb_line = 0
@@ -349,6 +281,126 @@ def main():
         print('\t'.join(cols), file=open(outfile, 'w'))
         os.remove(target_bed)
 
+    os.rmdir(os.path.dirname(temp_dir))
+
+
+def prep_snoglobe():
+    parser = argparse.ArgumentParser()
+
+    parser.add_argument("sno_fasta", help="fasta file containing snoRNA sequences")
+    parser.add_argument("target_ids",
+                        help="txt file containing target identifiers (gene_id, transcript_id or exon_id), "
+                             "ids should match the ones in the gtf file")
+    parser.add_argument("gtf", help="Annotation file in .gtf format. Preferably an annotation of the whole "
+                                    "genome or whole chromosomes of specified targets")
+    parser.add_argument("chromo_fasta_dir", help="Directory containing fasta files of individual chromosome")
+    parser.add_argument("output", help="Output file name")
+    parser.add_argument("-v", "--version", help="Show the version and exit",
+                        action="store_true")
+    parser.add_argument("-n", "--nb_threads", help="Number of threads to be used. Default: 1",
+                        type=int, default=1)
+    parser.add_argument("-s", "--stepsize", help="Number of nucleotides between each target sliding window. Default: 1",
+                        type=int, default=1)
+    parser.add_argument("-c", "--chunksize", help="Number of combinations to run at once. Default: 2500000",
+                        type=int, default=2500000)
+    parser.add_argument("-t", "--threshold", help="Minimum score for an interaction to be reported, "
+                                                  "value between 0 and 1. Default: 0.95",
+                        type=float, default=0.95)
+    parser.add_argument("-m", "--merge", help="Use this option to merge consecutive positive windows as one",
+                        action='store_true')
+    parser.add_argument("-w", "--nb_windows", help="Minimum number of consecutive windows for an "
+                                                   "interaction to be reported. Must be used with -m option. Default: 1",
+                        type=int, default=1)
+    parser.add_argument("--seq", help="Add target and snoRNA interaction sequences to the output",
+                        action='store_true')
+    parser.add_argument("--verbose", help='Print the steps', action='store_true')
+
+    if sys.argv[1] in ['-v', '--version']:
+        print('snoGloBe version :', __version__)
+        exit(0)
+
+    args = parser.parse_args()
+
+    sno_fasta = args.sno_fasta
+    target_ids = args.target_ids
+    gtf = args.gtf
+    chromo_dir  = args.chromo_fasta_dir
+    nb_threads = args.nb_threads
+    step = args.stepsize
+    chunksize = args.chunksize
+    threshold = args.threshold
+    outfile = os.path.abspath(args.output)
+
+    merge_conswindows = args.merge
+    nb_windows = args.nb_windows
+    add_seq = args.seq
+    verbose = args.verbose
+
+    tests.check_dependencies()
+    tests.check_gtf(gtf)
+    tests.check_output(outfile)
+
+    if nb_windows != 1 and merge_conswindows is False:
+        print('-w/--nb_windows must be used with -m/--merge option. -w/--windows %d will be ignored' % nb_windows,
+              file=sys.stderr)
+
+    if threshold < 0 or threshold >1:
+        print("Wrong choice of -t/--threshold. Value must be between 0 and 1, chosen value was: ", threshold,
+              file=sys.stderr)
+        exit(1)
+
+    df_gtf = read_gtf(gtf, verbose)
+
+    with open(target_ids) as tf:
+        target_list =  tf.readlines()
+        target_list = [t.strip() for t in target_list]
+    tests.check_target_ids(df_gtf, target_list)
+
+    comb_run = 'temp_' + str(random.randint(0, 100000))
+    temp_dir = os.path.join(os.path.dirname(outfile), comb_run, os.path.basename(outfile))
+    os.makedirs(os.path.dirname(temp_dir))
+    sno_dict = read_trx_fasta(sno_fasta)
+    target_dict = get_target_seq(df_gtf, chromo_dir, target_list, verbose, temp_dir)
+
+    run_snoglobe(sno_dict, target_list, target_dict, df_gtf, nb_threads, step, chunksize, threshold,
+                 outfile, temp_dir, nb_windows, merge_conswindows, add_seq, verbose)
+
+
+def prep_snoglobe_web(step, threshold, nb_windows, nb_threads, chunksize, outfile, sno_fasta='', target_ids='',
+                      target_fasta='', target_info='', target_biotype=''):
+    if target_ids != '':
+        target_list = target_ids.split()
+        df_gtf, target_dict = fetch_from_ensembl(target_list)
+        calc_intron = True
+    elif target_fasta != '':
+        target_dict = read_fasta_from_str(target_fasta, 'target')
+        gtf = []
+        for k in target_dict.keys():
+            k_entry = k.rsplit('_', 2)
+            k_len = len(target_dict[k]['seq'])
+            for t_loc in target_info:
+                gtf.append([k.rsplit('_',2)[0]] + k_entry + [k_len, t_loc, target_biotype, '.'])
+        df_gtf = pd.DataFrame(gtf,
+                              columns=['feature_id', 'seqname', 'start', 'strand', 'end',
+                                       'feature', 'gene_biotype', 'score'])
+        df_gtf[['start', 'end']] = df_gtf[['start', 'end']].astype(int)
+        target_list = df_gtf.feature_id.unique().tolist()
+        df_gtf['gene_id'] = df_gtf['seqname']
+        df_gtf['transcript_id'] = df_gtf['seqname'] + '_trx'
+        calc_intron = False
+
+    else:
+        sys.exit()
+
+    sno_dict = read_fasta_from_str(sno_fasta, 'sno')
+    comb_run = 'temp_' + str(random.randint(0, 100000))
+    temp_dir = os.path.join(os.path.dirname(outfile), comb_run, os.path.basename(outfile))
+    os.makedirs(os.path.dirname(temp_dir))
+
+    run_snoglobe(sno_dict, target_list, target_dict, df_gtf, nb_threads, step, chunksize, threshold,
+                      outfile, temp_dir, nb_windows, calc_intron=calc_intron)
+
 
 if __name__ == '__main__':
-    main()
+    prep_snoglobe()
+
