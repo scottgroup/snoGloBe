@@ -3,50 +3,7 @@ from Bio.Seq import Seq
 import gzip
 import pandas as pd
 import gc
-
-
-def find_prefix(filelist):
-    pref = ''
-    for i in range(0, len(max(filelist, key=len))):
-        pref += filelist[0][i]
-        for f in filelist:
-            if f[:i+1] != pref:
-                return pref[:-1]
-    return ''
-
-
-def find_suffix(filelist):
-    suf = ''
-    for i in range(1, len(max(filelist, key=len)) + 1):
-        suf = filelist[0][-i] + suf
-        for f in filelist:
-            if f[-i:] != suf:
-                return suf[1:]
-    return ''
-
-
-def get_chr_dict(chr_file, chromo, max_pos):
-    chr_seq_dict = {}
-    # Open an optionally gzipped file
-    fn_open = gzip.open if chr_file.endswith('.gz') else open
-
-    file_string = str()
-    with fn_open(chr_file) as f:
-        n = 0
-        for line in f:
-            try:
-                line = line.decode('utf-8')
-            except AttributeError:
-                pass
-            if line.startswith('>'):
-                continue
-            else:
-                file_string += line.strip()
-                n += len(line.strip())
-                if n > max_pos:
-                    break
-    chr_seq_dict[chromo] = file_string
-    return chr_seq_dict
+import sys
 
 
 def get_sequence_from_coordinates(dataf, chr_directory, verbose):
@@ -68,29 +25,55 @@ def get_sequence_from_coordinates(dataf, chr_directory, verbose):
     dataf['seqname'] = dataf['seqname'].map(str)
     chr_list = list(dataf['seqname'].unique())
 
-    df_out = pd.DataFrame()
+    df_out = pd.DataFrame(columns=['seqname', 'start', 'end', 'strand', 'seq'])
 
     listdir = os.listdir(chr_directory)
     listdir = [f for f in listdir if '.fa' in f]
-    pref = find_prefix(listdir)
-    suf = find_suffix(listdir)
 
     for chr_file in listdir:
-        chromo = chr_file.replace(pref, '').replace(suf, '')
-        if len(listdir) == 1:
-            chromo = chr_file.split('.fa')[0]
-        if chromo not in chr_list:
-            if 'chr' + chromo in chr_list:
-                chromo = 'chr' + chromo
-            else:
-                continue
         chr_file = os.path.join(chr_directory, chr_file)
-        dataf_temp = dataf[dataf.seqname == chromo].copy(deep=True)
-        max_pos = dataf_temp.end.max()
-        chr_seq_dict = get_chr_dict(chr_file, chromo, max_pos)
+        chr_seq_dict = {}
+        # Open an optionally gzipped file
+        fn_open = gzip.open if chr_file.endswith('.gz') else open
+
+        chromo = ''
+        with fn_open(chr_file) as f:
+            for line in f:
+                try:
+                    line = line.decode('utf-8')
+                except AttributeError:
+                    pass
+                if line.startswith('>'):
+                    if chromo in chr_seq_dict.keys():
+                        chr_seq_dict[chromo] = filestring
+                    n = 0
+                    chromo = line[1:].split()[0]
+                    if chromo in chr_list:
+                        filestring = str()
+                        chr_seq_dict[chromo] = filestring
+                        max_pos = dataf[dataf.seqname == chromo].end.max()
+                else:
+                    if chromo in chr_seq_dict.keys() and n <= max_pos:
+                        line = line.strip()
+                        filestring += line
+                        n += len(line)
+        if chromo in chr_seq_dict.keys():
+            chr_seq_dict[chromo] = filestring
+
+        dataf_temp = dataf[dataf.seqname.isin(chr_seq_dict.keys())].copy(deep=True)
         dataf_temp = dataf_temp.apply(fetch_seqs, axis=1)
-        df_out = df_out.append(dataf_temp)
+        if not dataf_temp.empty:
+            df_out = df_out.append(dataf_temp)
         del chr_seq_dict
+
+        chromo_out = df_out.seqname.unique().tolist()
+        missing_chromo = set(chr_list) - set(chromo_out)
+        if len(missing_chromo) == 0:
+            break
+
+    if len(missing_chromo) > 0:
+        print('Error! Missing fasta entry for chromosome(s): %s. Exiting.'% ', '.join(missing_chromo), file=sys.stderr)
+        sys.exit(1)
 
     gc.collect()
     return df_out
