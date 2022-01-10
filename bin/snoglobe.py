@@ -4,15 +4,15 @@ __author__ = "Gabrielle Deschamps-Francoeur"
 __email__ = "gabrielle.deschamps-francoeur@usherbrooke.ca"
 __version__ = '0.1.1'
 
+import os, sys
+sys.path.append(os.path.dirname(os.path.realpath(__file__)))
 import argparse
 from sliding_windows import sliding_window, read_trx_fasta
 from make_feature_bed import make_bed
-import os
 import pandas as pd
 import extract_features as ef
 from predict_mp import make_pred
 from consecutive_windows import cons_windows
-import sys
 import tests
 from fetch_sequence import get_sequence_from_coordinates as get_seq
 import re
