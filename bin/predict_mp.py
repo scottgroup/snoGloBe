@@ -6,6 +6,8 @@ import multiprocessing as mp
 import numpy as np
 import gc
 import os
+from extract_features import set_columns
+from sliding_windows import seq_onehotmatrix
 
 
 def predict(args):
@@ -13,7 +15,6 @@ def predict(args):
     X_sno['decoy'] = 0
     X_t['decoy'] = 0
     X = pd.merge(X_sno, X_t, on='decoy')
-    del X_t
     X = X.drop(['decoy'], axis=1)
     X = X.set_index(X.snoid + ',' + X.wid)
     X = X.drop(['snoid', 'wid'], axis=1)
@@ -25,8 +26,7 @@ def predict(args):
     df_proba['target_id'] = df_proba.index.str.split(',', expand=True).get_level_values(1)
     df_proba[['snoid', 'sno_window_start']] = df_proba['snoid'].str.rsplit('_', 1, expand=True)
     df_proba['sno_window_end'] = df_proba['sno_window_start'].astype(int) + 13
-    df_proba[['target_chromo', 'start', 'target_strand', 'wstart']] = df_proba['target_id'].str.rsplit('_', 3,
-                                                                                                       expand=True)
+    df_proba[['target_chromo', 'target_strand', 'wstart']] = df_proba['target_id'].str.rsplit('_', 2, expand=True)
     df_proba['target_id'] = df_proba['target_id'].str.rsplit('_', 1).str[0]
     df_proba['wend'] = df_proba.wstart.astype(int) + 13
     df_proba = df_proba[['target_chromo', 'wstart', 'wend', 'target_id', 'prob_pos', 'target_strand',
@@ -44,19 +44,16 @@ def make_pred(step, snofile, targetfile, chunksize, nb_threads, outfile, thresho
         '7_A', '7_C', '7_G', '7_U', '8_A', '8_C', '8_G', '8_U', '9_A', '9_C', '9_G', '9_U', 'rel_pos'
     ]
     targetcols = [
-        '13_A', '13_C', '13_G', '13_U', '23_A', '23_C', '23_G', '23_U', '24_A', '24_C', '24_G', '24_U',
-        '25_A', '25_C', '25_G', '25_U', '14_A', '14_C', '14_G', '14_U', '15_A', '15_C', '15_G', '15_U',
-        '16_A', '16_C', '16_G', '16_U', '17_A', '17_C', '17_G', '17_U', '18_A', '18_C', '18_G', '18_U',
-        '19_A', '19_C', '19_G', '19_U', '20_A', '20_C', '20_G', '20_U', '21_A', '21_C', '21_G', '21_U',
-        '22_A', '22_C', '22_G', '22_U', 'Mt_rRNA', 'Mt_tRNA', 'TEC', 'TR_V_gene', 'exon', 'five_prime_utr',
+        'wid', 'seq', 'Mt_rRNA', 'Mt_tRNA', 'TEC', 'TR_V_gene', 'exon', 'five_prime_utr',
         'intron', 'lncRNA', 'miRNA', 'misc_RNA', 'protein_coding', 'pseudogene', 'rRNA', 'ribozyme', 'sRNA',
-        'scRNA', 'scaRNA', 'snRNA', 'snoRNA', 'tRNA', 'three_prime_utr', 'vaultRNA', 'wid'
+        'scRNA', 'scaRNA', 'snRNA', 'snoRNA', 'tRNA', 'three_prime_utr', 'vaultRNA'
     ]
     cat_tcol = targetcols.copy()
     cat_snocol = snocols.copy()
     cat_snocol.remove('rel_pos')
     cat_snocol.remove('snoid')
     cat_tcol.remove('wid')
+    cat_tcol.remove('seq')
 
     snodtypes = {i: "bool" for i in cat_snocol}
     tdtypes = {i: "bool" for i in cat_tcol}
@@ -79,14 +76,16 @@ def make_pred(step, snofile, targetfile, chunksize, nb_threads, outfile, thresho
     mdl_path = os.path.join(os.path.dirname(os.path.realpath(__file__)), 'snoGloBe.sav')
     mdl = pickle.load(open(mdl_path, 'rb'))
     mode = 'w'
-    for X_sno in pd.read_csv(snofile, dtype=snodtypes, chunksize=chunksize_sno):
-        for i in set(snocols) - set(X_sno.columns):
-            X_sno[i] = False
-        X_sno = X_sno[snocols]
-        for X_t in pd.read_csv(targetfile, dtype=tdtypes, chunksize=chunksize_t):
-            for i in set(targetcols) - set(X_t.columns):
-                X_t[i] = False
-            X_t = X_t[targetcols]
+    for X_t in pd.read_csv(targetfile, names=targetcols, dtype=tdtypes, chunksize=chunksize_t, sep='\t'):
+        X_t['seq'] = X_t['seq'].str.upper().str.replace('T', 'U')
+        X_t = seq_onehotmatrix(X_t)
+        X_t = set_columns(X_t)
+        tseq_cols = [c for c in  X_t.columns if c[0].isdigit()]
+        X_t[tseq_cols] = X_t[tseq_cols].astype(bool)
+        for X_sno in pd.read_csv(snofile, dtype=snodtypes, chunksize=chunksize_sno):
+            for i in set(snocols) - set(X_sno.columns):
+                X_sno[i] = False
+            X_sno = X_sno[snocols]
             pool = mp.Pool(processes=nb_threads)
             res = pool.map(predict,
                            [[X_sno, X_part, mdl, step, threshold] for X_part in np.array_split(X_t, nb_threads)])

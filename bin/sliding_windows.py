@@ -20,7 +20,9 @@ def seq_onehotmatrix(df):
     df_seq = df.seq.str.extractall('(.)')[0].unstack()
     df_seq = pd.get_dummies(df_seq)
     df = df.drop(['seq'], axis=1)
-    df = df.merge(df_seq, right_index=True, left_index=True)
+    df = df.sort_index()
+    df_seq = df_seq.sort_index()
+    df = df.join(df_seq)
     return df
 
 

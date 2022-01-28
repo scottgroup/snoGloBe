@@ -4,6 +4,7 @@ import sys
 
 
 def fetch_from_ensembl(target_ids):
+    # doesn't work with bedtools getfasta because fasta is target_seq and positions are chromosomal
     server = "https://rest.ensembl.org"
     ext_gtf = "/overlap/id/%s?feature=gene&feature=exon&feature=CDS&feature=transcript"
     ext_seq = "/sequence/id/%s?"
@@ -111,10 +112,12 @@ def read_fasta_from_str(fasta_string, seq_type):
         if line[0] == '>':
             if id != '':
                 d_fasta[id]['seq'] = seq
-            id = line[1:]
+            id = line[1:].split()[0]
             if seq_type == 'target':
-                id += '_0_+'
-            d_fasta[id] = {'seq': '', 'start': 0, 'strand': '+'}
+                id += '_1_+'
+                d_fasta[id] = {'seq': '', 'start': 1, 'strand': '+'}
+            else:
+                d_fasta[id] = {'seq': '', 'start': 0, 'strand': '+'}
             seq = ''
         else:
             seq += line.upper().replace('T', 'U')
