@@ -129,11 +129,11 @@ def merge_consecutive_windows(df_bed, step, nb_min, last_pos, agg_fct=['mean', '
 
     df_prev_fwd = df_merged[
         (df_merged.target_strand == '+')
-        & (df_merged.target_window_end - 13 == last_pos)
+        & ((df_merged.target_window_end - 13 == last_pos) | (df_merged.target_window_end - 13 == last_pos - 1))
     ].copy(deep=True)
     df_merged_fwd = df_merged[
         (df_merged.target_strand == '+')
-        & (df_merged.target_window_end - 13 != last_pos)
+        & (df_merged.target_window_end - 13 != last_pos) & (df_merged.target_window_end - 13 != last_pos - 1)
     ].copy(deep=True)
 
     df_prev_rev = df_merged[
@@ -152,7 +152,7 @@ def merge_consecutive_windows(df_bed, step, nb_min, last_pos, agg_fct=['mean', '
     return df_merged, df_prev
 
 
-def cons_windows(infile, nb_min, chunksize, step, nb_threads):
+def cons_windows(infile, nb_min, chunksize, step, nb_threads, add_seq):
     # File should be sorted by target start to be compatible with chunks,
     # otherwise, some consecutive windows could not be merged
     wlength = 13
@@ -166,6 +166,11 @@ def cons_windows(infile, nb_min, chunksize, step, nb_threads):
                                     'sno_window_start', 'sno_window_end', 'target_chromo',
                                     'target_window_start', 'target_window_end',
                                     'target_strand', 'min_score1', 'max_score1', 'mean_score1', 'count1'])
+    output_cols = ['target_chromo', 'target_window_start', 'target_window_end', 'target_id', 'count', 'target_strand',
+                   'sno_id', 'sno_window_start', 'sno_window_end', 'mean_score', 'min_score', 'max_score']
+    if add_seq:
+        output_cols.append('add_seq')
+
     for i, df in enumerate(pd.read_csv(sorted_input,
                                        names=['target_chromo', 'wstart', 'wend', 'target_id',
                                               'score', 'target_strand',  'sno_id', 'sno_window', 'sno_window_end'],
@@ -198,15 +203,17 @@ def cons_windows(infile, nb_min, chunksize, step, nb_threads):
         else:
             mode = 'a'
 
-        df_merged[[
-            'target_chromo', 'target_window_start', 'target_window_end', 'target_id', 'count', 'target_strand',
-            'sno_id', 'sno_window_start', 'sno_window_end', 'mean_score', 'min_score', 'max_score'
-        ]].to_csv(temp_output, mode=mode, header=False, index=False, sep='\t')
+        if add_seq:
+            df_merged['add_seq'] = 1 
+        df_merged[output_cols].to_csv(temp_output, mode=mode, header=False, index=False, sep='\t')
 
-    df_prev[df_prev['count1'] >= nb_min][[
-        'target_chromo', 'target_window_start', 'target_window_end', 'target_id', 'count1', 'target_strand',
-        'sno_id', 'sno_window_start', 'sno_window_end',
-        'mean_score1', 'min_score1', 'max_score1'
-    ]].to_csv(temp_output,  mode='a', header=False, index=False, sep='\t')
+
+    cols = ['target_chromo', 'target_window_start', 'target_window_end', 'target_id', 'count1', 'target_strand',
+            'sno_id', 'sno_window_start', 'sno_window_end', 'mean_score1', 'min_score1', 'max_score1']
+    if add_seq:
+        df_prev['add_seq'] = 1
+        cols.append('add_seq')
+
+    df_prev[df_prev['count1'] >= nb_min][cols].to_csv(temp_output,  mode='a', header=False, index=False, sep='\t')
     os.remove(infile)
     os.rename(temp_output, infile)

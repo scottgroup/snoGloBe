@@ -1,9 +1,9 @@
-import requests
 import pandas as pd
 import sys
 
 
 def fetch_from_ensembl(target_ids):
+    import requests
     # doesn't work with bedtools getfasta because fasta is target_seq and positions are chromosomal
     server = "https://rest.ensembl.org"
     ext_gtf = "/overlap/id/%s?feature=gene&feature=exon&feature=CDS&feature=transcript"

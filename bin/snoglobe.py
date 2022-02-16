@@ -140,6 +140,8 @@ def interaction_sequence(outfile, sno_dict, chromo_dict, chunksize, cols, temp_d
     tempfile1 = temp_dir + '.tseq'
     get_window_seq(chromo_dict, outfile, tempfile1)
     for i, df in enumerate(pd.read_csv(tempfile1, chunksize=chunksize, names=cols, sep='\t')):
+        if 'add_seq' in df.columns:
+            df = df.drop(['add_seq'], axis=1)
         if i == 0:
             mode = 'w'
         else:
@@ -231,15 +233,19 @@ def run_snoglobe(sno_dict, target_list, chromo_dir, df_gtf, nb_threads, step, ch
     if merge_conswindows:
         if verbose:
             print('Merging consecutive windows')
-        cons_windows(outfile, nb_windows, chunksize, step, nb_threads)
+        cons_windows(outfile, nb_windows, chunksize, step, nb_threads, add_seq)
         cols = ['target_chromo', 'target_window_start', 'target_window_end', 'target_id', 'count', 'target_strand',
                 'sno_id', 'sno_window_start', 'sno_window_end', 'mean_score', 'min_score', 'max_score']
 
     if add_seq:
         if verbose:
             print('Adding interaction sequences')
+        if merge_conswindows:
+            cols.append('add_seq')
         cols.extend(['target_seq'])
         interaction_sequence(outfile, sno_dict, chromo_dict, chunksize, cols, temp_dir)
+        if merge_conswindows:
+            cols.remove('add_seq')
         cols.extend(['sno_seq'])
 
     temp_chromo_files = [temp_dir + '.chromo.fa', temp_dir + '.chromo.fa.fai']
@@ -280,8 +286,11 @@ def run_snoglobe(sno_dict, target_list, chromo_dir, df_gtf, nb_threads, step, ch
         res2 = subprocess.Popen(groupby_cmd, stdin=res1.stdout, stdout=subprocess.PIPE)
         res3 = subprocess.Popen(awk_cmd, stdin=res2.stdout, stdout=open(final_file, 'a'))
         res3.wait()
+        res2.wait()
+        res1.wait()
+        res0.wait()
 
-        if res3.returncode == 0:
+        if res0.returncode == 0 and res1.returncode == 0 and res2.returncode == 0 and res3.returncode == 0:
             # clean up temp files
             os.remove(target_bed)
             os.rename(final_file, outfile)
@@ -343,6 +352,8 @@ def prep_snoglobe():
     grep_cmd = ('grep', '-f', target_ids, full_gtf)
     res0 = subprocess.Popen(grep_cmd, stdout=open(temp_dir + '.target.gtf', 'a'))
     res0.wait()
+    if res0.returncode != 0:
+        sys.exit(1)
 
     # bedtools intersect target_bed gtf > small.gtf
     gtf = temp_dir + '.small.gtf'

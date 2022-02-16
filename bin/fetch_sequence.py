@@ -42,8 +42,9 @@ def make_windows(df, temp_dir, step, output_file):
         res1 = subprocess.Popen(bedtools_cmd, stdin=res0.stdout, stdout=subprocess.PIPE)
         res2 = subprocess.Popen(awk_cmd, stdin=res1.stdout, stdout=open(output_file, 'a'))
         res2.wait()
+        res1.wait()
 
-        if res2.returncode == 0:
+        if res1.returncode == 0 and res2.returncode == 0:
             # clean up temp files
             os.remove(tmp_file)
         else:
@@ -76,7 +77,8 @@ def get_window_seq(chromo_dict, input_file, output_file):
                 res1 = subprocess.Popen(getfasta_cmd, stdout=subprocess.PIPE)
                 res2 = subprocess.Popen(awk_cmd, stdin=res1.stdout, stdout=open(output_file, 'a'))
                 res2.wait()
-                if res2.returncode == 0:
+                res1.wait()
+                if res1.returncode == 0 and res2.returncode == 0:
                     # clean up temp files
                     os.remove(chromo_file + chromo)
                 else:

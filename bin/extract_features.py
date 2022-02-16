@@ -56,4 +56,9 @@ def extract_features(fpath, bedfile, target_file):
     res1 = subprocess.Popen(cut_cmd, stdin=res0.stdout, stdout=subprocess.PIPE)
     res2 = subprocess.Popen(groupby_cmd, stdin=res1.stdout, stdout=open(target_file, mode='a'))
     res2.wait()
-    os.remove(temp_bed)
+    res1.wait()
+    res0.wait()
+    if res0.returncode == 0 and res1.returncode == 0 and  res2.returncode == 0:
+        os.remove(temp_bed)
+    else:
+        sys.exit(1)
