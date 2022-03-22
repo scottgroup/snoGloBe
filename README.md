@@ -85,8 +85,8 @@ interest and using a cluster for more exhaustive jobs.
 
 ## **Authors**
 
-* **Gabrielle Deschamps-Francoeur** - [gitlab](http://gitlabscottgroup.med.usherbrooke.ca/u/gabrielle)
-* **Michelle S Scott** - [website](http://scottgroup.med.usherbrooke.ca/)
+* **Gabrielle Deschamps-Francoeur**
+* **Michelle S Scott** - [website](https://bioinfo-scottgroup.med.usherbrooke.ca/)
 
 Questions should be directed to: _gabrielle.deschamps-francoeur@usherbrooke.ca_
 
