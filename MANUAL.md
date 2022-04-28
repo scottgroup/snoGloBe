@@ -19,7 +19,7 @@ The sequences of the targets will be extracted based on the information in the a
 sequences.
      
 
-![alt_tag](ressources/inputfiles.png)
+![alt_tag](resources/inputfiles.png)
 
 ## How it works
 
@@ -27,18 +27,18 @@ snoGloBe splits the sequences in 13-nt sliding windows. The step size for the sn
 for the target can be specified by the argument `-s/--stepsize`.
 
 
-![alt_tag](ressources/sliding_windows.png)
+![alt_tag](resources/sliding_windows.png)
 
 
 All the 13 nt windows from the snoRNAs will be compared to all the 13 nt windows from the potential targets.
 
-![alt_tag](ressources/sliding_windows_combination.png)
+![alt_tag](resources/sliding_windows_combination.png)
 
 The input features will be extracted for each individual window. The snoRNA features are the window sequence and the 
 relative position of the window in the snoRNA. The target features are the window sequence, the position of the window 
 (exon and/or intron and whether the exon is a 5' or 3' UTR) and the biotype of the potential target.
 
-![alt_tag](ressources/input_features.png)
+![alt_tag](resources/input_features.png)
 
 The target biotypes considered are listed below, any other biotype will be ignored.
 ```
