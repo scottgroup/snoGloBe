@@ -23,7 +23,7 @@ snoGloBe also needs
 First, you must clone the git repository:
 ```
 cd /path/to/clone/
-git clone http://gitlabscottgroup.med.usherbrooke.ca/scott-group/snoglobe.git
+git clone https://github.com/scottgroup/snoGloBe.git
 ```
 
 For easier use, add the /bin/ path of the snoglobe repository to your PATH environment variable.
@@ -113,6 +113,6 @@ For more information about the GNU General Public License, see <http://www.gnu.o
 
 Please cite as :
 
-Deschamps-Francoeur G, Couture S, Abou-Elela S, Scott MS. The snoGloBe interaction predictor enables a broader study 
-of box C/D snoRNA functions and mechanisms. bioRxiv. 2021. Available from: 
-<https://www.biorxiv.org/content/10.1101/2021.09.14.460265v1>
+Deschamps-Francoeur G, Couture S, Abou-Elela S, Scott MS. The snoGloBe interaction predictor reveals a broad 
+spectrum of C/D snoRNA RNA targets. bioRxiv. 2021. Available from: 
+<https://www.biorxiv.org/content/10.1101/2021.09.14.460265v3>
